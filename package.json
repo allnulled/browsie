@@ -1,0 +1,12 @@
+{
+  "name": "browsie",
+  "version": "1.0.0",
+  "description": "IndexedDB wrapper.",
+  "main": "browsie.js",
+  "scripts": {
+    "test": "npx http-server -c-1 . -o test.html"
+  },
+  "keywords": [],
+  "author": "allnulled",
+  "license": "WTFPL"
+}
