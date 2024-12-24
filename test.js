@@ -70,7 +70,7 @@
       schema = await Browsie.getSchema("browsie_test");
       console.log(schema);
       await db.close();
-      await Browsie.renameDatabase("browsie_test", "browsie_test_2");
+      await Browsie.deleteDatabase("browsie_test");
     }
     document.querySelector("#test").textContent += "\n[✔] Browsie Schema API Tests passed successfully.";
   } catch (error) {

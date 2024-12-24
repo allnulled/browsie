@@ -12,14 +12,14 @@
 })(function () {
 
   class BrowsieStaticAPI {
-    
+
     static openedConnections = [];
 
     static _trace = true;
-    
+
     static trace(methodName, args = []) {
-      if(this._trace) {
-        console.log("[TRACE][" + methodName + "]", args.length + " args: " + Array.from(args).map(arg => typeof(arg)).join(", "));
+      if (this._trace) {
+        console.log("[TRACE][" + methodName + "]", args.length + " args: " + Array.from(args).map(arg => typeof (arg)).join(", "));
       }
     }
 
@@ -73,233 +73,98 @@
       this.trace("Browsie.getAllDataFromStore", arguments);
       return await new Promise((resolve, reject) => {
         const request = indexedDB.open(dbName);
-  
+
         request.onsuccess = (event) => {
           const db = event.target.result;
           const transaction = db.transaction(storeName, 'readonly');
           const store = transaction.objectStore(storeName);
-  
+
           const getAllRequest = store.getAll();
           getAllRequest.onsuccess = () => resolve(getAllRequest.result);
-          getAllRequest.onerror = () => reject(new Error('Error al obtener los datos del store'));
+          getAllRequest.onerror = () => {
+            db.close();
+            reject(new Error('Error al obtener los datos del store'));
+          };
         };
-  
-        request.onerror = () => reject(new Error('Error al abrir la base de datos'));
+
+        request.onerror = () => {
+          reject(new Error('Error al abrir la base de datos'));
+        };
       });
     }
-  
-    // Crear una base de datos con un nuevo esquema (para renombrar índice o store)
-    static async _createDatabaseWithModifiedSchema(dbName, oldStoreName, newStoreName) {
-      this.trace("Browsie._createDatabaseWithModifiedSchema", arguments);
-      return await new Promise((resolve, reject) => {
-        const request = indexedDB.open(dbName, 1);
-  
-        request.onupgradeneeded = (event) => {
-          const db = event.target.result;
-  
-          // Crear un nuevo store con el nuevo nombre
-          const objectStore = db.createObjectStore(newStoreName, { keyPath: 'id' }); // Cambia según el esquema original
-          resolve(db);
-        };
-  
-        request.onsuccess = (event) => resolve(event.target.result);
-        request.onerror = () => reject(new Error('Error al crear la base de datos'));
-      });
-    }
-  
+
     // Insertar datos en un store
     static async insertDataIntoStore(dbName, storeName, data) {
       this.trace("Browsie.insertDataIntoStore", arguments);
       return await new Promise((resolve, reject) => {
         const request = indexedDB.open(dbName);
-  
+
         request.onsuccess = (event) => {
           const db = event.target.result;
           const transaction = db.transaction(storeName, 'readwrite');
           const store = transaction.objectStore(storeName);
-  
+
           data.forEach(item => store.add(item));
-  
+
           transaction.oncomplete = () => resolve();
-          transaction.onerror = () => reject(new Error('Error al insertar los datos en el store'));
+          transaction.onerror = () => {
+            db.close();
+            reject(new Error('Error al insertar los datos en el store'));
+          };
         };
-  
-        request.onerror = () => reject(new Error('Error al abrir la base de datos'));
+
+        request.onerror = () => {
+          reject(new Error('Error al abrir la base de datos'));
+        };
       });
     }
-  
+
     // Eliminar una base de datos
     static deleteDatabase(dbName) {
       this.trace("Browsie.deleteDatabase", arguments);
       return new Promise((resolve, reject) => {
         const request = indexedDB.deleteDatabase(dbName);
-  
-        request.onblocked = () => reject(new Error("Error al eliminar la base de datos porque está bloqueada"));
-        request.onsuccess = () => resolve();
-        request.onerror = () => reject(new Error('Error al eliminar la base de datos'));
-      });
-    }
-  
-    // Renombrar un store
-    static async renameStore(dbName, oldStoreName, newStoreName) {
-      this.trace("Browsie.renameStore", arguments);
-      try {
-        // Paso 1: Obtener todos los datos del store original
-        const data = await this.getAllDataFromStore(dbName, oldStoreName);
-        localStorage.setItem('tempDbData', JSON.stringify(data)); // Serializar los datos
-  
-        // Paso 2: Eliminar la base de datos original
-        await this.deleteDatabase(dbName);
-  
-        // Paso 3: Crear la nueva base de datos con el nuevo store
-        const db = await this._createDatabaseWithModifiedSchema(dbName, oldStoreName, newStoreName);
-  
-        // Paso 4: Recuperar los datos de localStorage y cargarlos en el nuevo store
-        const tempData = JSON.parse(localStorage.getItem('tempDbData')) || [];
-        await this.insertDataIntoStore(dbName, newStoreName, tempData);
-  
-        // Paso 5: Limpiar localStorage
-        localStorage.removeItem('tempDbData');
-        console.log(`El store "${oldStoreName}" ha sido renombrado a "${newStoreName}".`);
-      } catch (error) {
-        console.error('Error durante el renombrado del store:', error);
-      }
-    }
-  
-    // Renombrar una base de datos
-    static async renameDatabase(oldDbName, newDbName) {
-      this.trace("Browsie.renameDatabase", arguments);
-      try {
-        const stores = []; // Almacenar los nombres de los stores
-  
-        // Paso 1: Obtener todos los datos de cada store y almacenarlos en localStorage
-        const request = indexedDB.open(oldDbName);
-        const dataMap = {};
-  
-        request.onsuccess = async (event) => {
-          const db = event.target.result;
-  
-          db.objectStoreNames.forEach(async (storeName) => {
-            const data = await this.getAllDataFromStore(oldDbName, storeName);
-            dataMap[storeName] = data;
-            stores.push(storeName);
-          });
-  
-          localStorage.setItem('tempDbData', JSON.stringify(dataMap));
-  
-          // Paso 2: Eliminar la base de datos original
-          await this.deleteDatabase(oldDbName);
-  
-          // Paso 3: Crear una nueva base de datos con el nuevo nombre
-          const tempRequest = indexedDB.open(newDbName, 1);
-  
-          tempRequest.onupgradeneeded = (event) => {
-            const newDb = event.target.result;
-  
-            // Recrear todos los stores con los datos de la base original
-            stores.forEach((storeName) => {
-              newDb.createObjectStore(storeName, { keyPath: 'id' });
-            });
-  
-            // Paso 4: Insertar los datos de cada store en la nueva base
-            const storedData = JSON.parse(localStorage.getItem('tempDbData')) || {};
-            Object.entries(storedData).forEach(([storeName, data]) => {
-              this.insertDataIntoStore(newDbName, storeName, data);
-            });
-  
-            // Paso 5: Limpiar localStorage
-            localStorage.removeItem('tempDbData');
-            console.log(`La base de datos "${oldDbName}" ha sido renombrada a "${newDbName}".`);
-          };
-  
-          tempRequest.onerror = (event) => {
-            console.error('Error al renombrar la base de datos:', event.target.error);
-          };
-        };
-  
-        request.onerror = () => {
-          console.error('Error al abrir la base de datos original.');
-        };
-      } catch (error) {
-        console.error('Error durante el renombrado de la base de datos:', error);
-      }
-    }
 
-    static async renameIndex(dbName, storeName, oldIndexName, newIndexName) {
-      this.trace("Browsie.renameIndex", arguments);
-      try {
-        // Paso 1: Obtener todos los datos del store original
-        const data = await this.getAllDataFromStore(dbName, storeName);
-    
-        // Paso 2: Eliminar la base de datos original
-        await this.deleteDatabase(dbName);
-    
-        // Paso 3: Crear una nueva base de datos con el índice renombrado
-        const request = indexedDB.open(dbName, 1);
-        request.onupgradeneeded = (event) => {
-          const db = event.target.result;
-    
-          // Crear el store y el índice con el nuevo nombre
-          const objectStore = db.createObjectStore(storeName, { keyPath: 'id' }); // Ajusta 'id' según tu esquema
-          objectStore.createIndex(newIndexName, newIndexName); // Crear índice con el nuevo nombre
+        request.onblocked = () => {
+          db.close();
+          reject(new Error("Error al eliminar la base de datos porque está bloqueada"));
         };
-    
-        const db = await new Promise((resolve, reject) => {
-          request.onsuccess = (event) => resolve(event.target.result);
-          request.onerror = () => reject(new Error('Error al crear la nueva base de datos'));
-        });
-    
-        // Paso 4: Renombrar el índice en los datos
-        const updatedData = data.map(item => {
-          if (oldIndexName in item) {
-            item[newIndexName] = item[oldIndexName]; // Renombrar la propiedad
-            delete item[oldIndexName]; // Eliminar la vieja propiedad
-          }
-          return item;
-        });
-    
-        // Paso 5: Insertar los datos actualizados en el store de la nueva base
-        const transaction = db.transaction(storeName, 'readwrite');
-        const store = transaction.objectStore(storeName);
-        updatedData.forEach(item => store.add(item));
-    
-        // Esperar a que la transacción termine
-        await new Promise((resolve, reject) => {
-          transaction.oncomplete = resolve;
-          transaction.onerror = reject;
-        });
-    
-        console.log(`El índice "${oldIndexName}" ha sido renombrado a "${newIndexName}".`);
-      } catch (error) {
-        console.error('Error durante el renombrado del índice:', error);
-      }
+        request.onsuccess = () => resolve();
+        request.onerror = () => {
+          db.close();
+          reject(new Error('Error al eliminar la base de datos'));
+        };
+      });
     }
 
     static async getSchema(dbName) {
       this.trace("Browsie.getSchema", arguments);
+      let db = undefined;
       try {
         // Abrir la base de datos en modo solo lectura
         const request = indexedDB.open(dbName);
-    
-        const db = await new Promise((resolve, reject) => {
+
+        db = await new Promise((resolve, reject) => {
           request.onsuccess = (event) => resolve(event.target.result);
-          request.onerror = () => reject(new Error('Error al abrir la base de datos'));
+          request.onerror = () => {
+            reject(new Error('Error al abrir la base de datos'));
+          };
         });
-    
+
         // Construir el esquema a partir de los almacenes
         const schema = {};
         const objectStoreNames = Array.from(db.objectStoreNames); // Lista de stores
-    
+
         objectStoreNames.forEach(storeName => {
           const transaction = db.transaction(storeName, 'readonly');
           const store = transaction.objectStore(storeName);
-    
+
           const storeInfo = {
             keyPath: store.keyPath,
             autoIncrement: store.autoIncrement,
             indexes: []
           };
-    
+
           // Recorrer los índices del store
           const indexNames = Array.from(store.indexNames); // Lista de índices
           indexNames.forEach(indexName => {
@@ -311,20 +176,23 @@
               multiEntry: index.multiEntry
             });
           });
-    
+
           schema[storeName] = storeInfo;
         });
-    
-        db.close();
+
         return schema;
       } catch (error) {
         console.error('Error al obtener el esquema:', error);
         throw error;
+      } finally {
+        if (db) {
+          db.close();
+        }
       }
     }
-    
+
   }
-  
+
 
   class Browsie extends BrowsieStaticAPI {
 
