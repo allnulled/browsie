@@ -23,7 +23,7 @@
       }
     }
 
-    async listDatabases() {
+    static async listDatabases() {
       this.trace("Browsie.listDatabases", arguments);
       try {
         const databases = await indexedDB.databases();
