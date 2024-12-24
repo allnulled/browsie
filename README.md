@@ -20,9 +20,14 @@ The global `window.Browsie` should now be available.
 
 ## API
 
-```
+```js
+await Browsie.listDatabases()
 await Browsie.deleteDatabase(dbName)
 await Browsie.createDatabase(dbName, storeDefinitions)
+await Browsie.renameStore(dbName, oldStoreName, newStoreName)
+await Browsie.renameDatabase(oldDbName, newDbName)
+await Browsie.renameIndex(dbName, storeName, oldIndexName, newIndexName)
+await Browsie.getSchema(dbName)
 browsie = new Browsie(dbName)
 await browsie.open()
 await browsie.select(store, filter)
