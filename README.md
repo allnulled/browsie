@@ -158,9 +158,3 @@ Finally, to apply the version upgrade, **increase the version** parameter of the
 Applying these 2 changes into your code, the database can migrate by itself, and track the ADN, to **keep compatibility** with previous schemas that users can have in their own browsers.
 
 So it is a good pattern. And we have close it the best way possible no, but close enough.
-
-## Comments
-
-This API avoids the versioning.
-
-The next polyfill would be `migrateDatabase(dbName, migration)`, which should not affect the version, because the versioning in `indexeddb` is a bit shitty.
