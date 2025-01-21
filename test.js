@@ -1,12 +1,23 @@
 (async function main() {
   try {
     Data_api: {
-      await Browsie.deleteDatabase("browsie_test");
-      await Browsie.createDatabase("browsie_test", {
+      await Browsie.deleteDatabase("browsie_test_data");
+      await Browsie.createDatabase("browsie_test_data", {
         articulos: ["!nombre", "categorias", "resumen", "fecha", "autor", "inspiracion", "tags"],
         productos: ["!nombre", "!modeloId", "categorias", "descripcion"]
+      }, 2, {
+        2: function(db) {
+          if (!db.objectStoreNames.contains("orders")) {
+            const ordersStore = db.createObjectStore("orders", {
+              keyPath: "id",
+              autoIncrement: true,
+            });
+            ordersStore.createIndex("orderDate", "orderDate", { unique: false });
+            ordersStore.createIndex("userId", "userId", { unique: false });
+          }
+        }
       });
-      const db = new Browsie("browsie_test");
+      const db = new Browsie("browsie_test_data");
       await db.open();
       const id1 = await db.insert("articulos", { nombre: "Artículo 1" });
       const id2 = await db.insert("articulos", { nombre: "Artículo 2" });
@@ -54,24 +65,25 @@
     document.querySelector("#test").textContent += "\n[✔] Browsie Data API Tests passed successfully.";
     Schema_api: {
       // let schema = await Browsie.getSchema("browsie_test"); console.log(schema);
-      await Browsie.deleteDatabase("browsie_test");
+      await Browsie.deleteDatabase("browsie_test_schema");
       // console.log("Create database..");
-      await Browsie.createDatabase("browsie_test", {
+      await Browsie.createDatabase("browsie_test_schema", {
         tabla1: ["!uuid", "columna1", "columna2", "columna3"],
         tabla2: ["!uuid", "columna1", "columna2", "columna3"],
         tabla3: ["!uuid", "columna1", "columna2", "columna3"],
         tabla4: ["!uuid", "columna1", "columna2", "columna3"],
       });
-      const db = await Browsie.open("browsie_test");
+      const db = await Browsie.open("browsie_test_schema");
       await db.insert("tabla1", { uuid: "1", columna1: "a", columna2: "b", columna3: "c" });
       await db.insert("tabla2", { uuid: "2", columna1: "a", columna2: "b", columna3: "c" });
       await db.insert("tabla3", { uuid: "3", columna1: "a", columna2: "b", columna3: "c" });
       await db.insert("tabla4", { uuid: "4", columna1: "a", columna2: "b", columna3: "c" });
-      schema = await Browsie.getSchema("browsie_test");
+      schema = await Browsie.getSchema("browsie_test_schema");
       console.log(schema);
       await db.close();
-      await Browsie.deleteDatabase("browsie_test");
     }
+    // await Browsie.deleteDatabase("browsie_test_data");
+    // await Browsie.deleteDatabase("browsie_test_schema");
     document.querySelector("#test").textContent += "\n[✔] Browsie Schema API Tests passed successfully.";
   } catch (error) {
     console.log(error);

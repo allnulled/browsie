@@ -34,6 +34,7 @@
       }
     }
 
+    /*
     // Crea la base de datos con el esquema final
     static createDatabase(dbName, storeDefinitions) {
       this.trace("Browsie.createDatabase", arguments);
@@ -64,6 +65,52 @@
               }
             }
           });
+        };
+      });
+    }
+    //*/
+
+    static createDatabase(dbName, schemaDefinition = null, version = 1, versionUpgrades = {}) {
+      this.trace("Browsie.createDatabase", arguments);
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(dbName, version);
+        request.onsuccess = () => {
+          console.log(`[SUCCESS] Database "${dbName}" created/opened successfully.`);
+          request.result.close();
+          resolve(request.result);
+        };
+        request.onerror = (error) => {
+          console.error(`[ERROR] Failed to create/open database "${dbName}":`, error);
+          reject(error);
+        };
+        request.onupgradeneeded = async (event) => {
+          const db = event.target.result;
+          console.log(`[UPGRADE] Upgrading database "${dbName}" from version ${event.oldVersion} to ${version}.`);
+          // Si hay una definición de esquema inicial, crear los almacenes e índices
+          if (schemaDefinition && event.oldVersion === 0) {
+            console.log("[SCHEMA] Applying initial schema definition.");
+            Object.keys(schemaDefinition).forEach((storeName) => {
+              if (!db.objectStoreNames.contains(storeName)) {
+                const objectStore = db.createObjectStore(storeName, {
+                  keyPath: "id",
+                  autoIncrement: true,
+                });
+                schemaDefinition[storeName].forEach((index) => {
+                  const indexName = index.replace(/^\!/, "");
+                  objectStore.createIndex(indexName, indexName, { unique: index.startsWith("!") });
+                });
+              }
+            });
+          }
+          // Aplicar las transformaciones de esquema para cada versión
+          for (let v = event.oldVersion + 1; v <= version; v++) {
+            if (versionUpgrades[v]) {
+              console.log(`[VERSION ${v}] Applying upgrade function.`);
+              await versionUpgrades[v](db);
+            } else {
+              console.log(`[VERSION ${v}] No upgrade function defined.`);
+            }
+          }
         };
       });
     }
