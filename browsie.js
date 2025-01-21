@@ -240,8 +240,79 @@
 
   }
 
+  class BrowsieTriggersAPI extends BrowsieStaticAPI {
 
-  class Browsie extends BrowsieStaticAPI {
+    static globMatch(patterns, list) {
+      const matches = new Set();
+      const regexes = patterns.map(pattern => {
+        const regexPattern = pattern
+          .replace(/[-/\\^$+?.()|[\]{}]/g, "\\$&")
+          .replace(/\*/g, ".*");
+        return new RegExp(`^${regexPattern}$`);
+      });
+      for (const item of list) {
+        for (const regex of regexes) {
+          if (regex.test(item)) {
+            matches.add(item);
+            break;
+          }
+        }
+      }
+      return Array.from(matches);
+    }
+
+    triggers = {
+      all: {},
+
+      register: (triggerNamePattern, triggerIdentifier, triggerCallback, triggerConfigurations = {}) => {
+        const { priority = 0 } = triggerConfigurations; // Default priority is 0
+        if (!this.triggers.all[triggerNamePattern]) {
+          this.triggers.all[triggerNamePattern] = [];
+        }
+        this.triggers.all[triggerNamePattern].push({
+          id: triggerIdentifier,
+          callback: triggerCallback,
+          priority,
+        });
+      },
+
+      emit: (triggerName, parameters = {}) => {
+        const matchedTriggers = [];
+        const allPatterns = Object.keys(this.triggers.all);
+
+        // Encuentra patrones que coincidan con el nombre del evento
+        const matchedPatterns = this.constructor.globMatch(allPatterns, [triggerName]);
+
+        // Agrega todos los eventos coincidentes a la lista de disparos
+        for (const pattern of matchedPatterns) {
+          matchedTriggers.push(...this.triggers.all[pattern]);
+        }
+
+        // Ordena por prioridad descendente
+        matchedTriggers.sort((a, b) => b.priority - a.priority);
+
+        // Ejecuta los callbacks en orden
+        for (const trigger of matchedTriggers) {
+          trigger.callback(parameters);
+        }
+      },
+
+      unregister: (triggerIdentifier) => {
+        for (const pattern in this.triggers.all) {
+          this.triggers.all[pattern] = this.triggers.all[pattern].filter(
+            (trigger) => trigger.id !== triggerIdentifier
+          );
+          if (this.triggers.all[pattern].length === 0) {
+            delete this.triggers.all[pattern]; // Limpia patrones vacíos
+          }
+        }
+      },
+    };
+
+  }
+
+
+  class BrowsieCrudAPI extends BrowsieTriggersAPI {
 
     static async open(...args) {
       this.trace("Browsie.open", arguments);
@@ -280,6 +351,7 @@
     // Método para seleccionar elementos de un store con un filtro
     select(store, filter) {
       this.constructor.trace("browsie.select", arguments);
+      this.triggers.emit(`crud.select.one.${store}`, { store, filter });
       return new Promise((resolve, reject) => {
         const transaction = this.db.transaction(store, 'readonly');
         const objectStore = transaction.objectStore(store);
@@ -298,6 +370,7 @@
     // Método para insertar un solo item en un store
     insert(store, item) {
       this.constructor.trace("browsie.insert", arguments);
+      this.triggers.emit(`crud.insert.one.${store}`, { store, item });
       return new Promise((resolve, reject) => {
         const transaction = this.db.transaction(store, 'readwrite');
         const objectStore = transaction.objectStore(store);
@@ -311,6 +384,7 @@
     // Método para actualizar un item en un store
     update(store, id, item) {
       this.constructor.trace("browsie.update", arguments);
+      this.triggers.emit(`crud.update.one.${store}`, { store, id, item });
       return new Promise((resolve, reject) => {
         const transaction = this.db.transaction(store, 'readwrite');
         const objectStore = transaction.objectStore(store);
@@ -324,6 +398,7 @@
     // Método para eliminar un item de un store por ID
     delete(store, id) {
       this.constructor.trace("browsie.delete", arguments);
+      this.triggers.emit(`crud.delete.one.${store}`, { store, id });
       return new Promise((resolve, reject) => {
         const transaction = this.db.transaction(store, 'readwrite');
         const objectStore = transaction.objectStore(store);
@@ -356,6 +431,7 @@
     // Método para insertar varios items en un store
     insertMany(store, items) {
       this.constructor.trace("browsie.insertMany", arguments);
+      this.triggers.emit(`crud.insert.many.${store}`, { store, items });
       return new Promise((resolve, reject) => {
         const transaction = this.db.transaction(store, 'readwrite');
         const objectStore = transaction.objectStore(store);
@@ -375,6 +451,7 @@
     // Método para actualizar varios items en un store
     updateMany(store, filter, item) {
       this.constructor.trace("browsie.updateMany", arguments);
+      this.triggers.emit(`crud.update.many.${store}`, { store, filter, item });
       return new Promise((resolve, reject) => {
         const transaction = this.db.transaction(store, 'readwrite');
         const objectStore = transaction.objectStore(store);
@@ -402,6 +479,7 @@
     // Método para eliminar varios items de un store según un filtro
     deleteMany(store, filter) {
       this.constructor.trace("browsie.deleteMany", arguments);
+      this.triggers.emit(`crud.delete.many.${store}`, { store, filter });
       return new Promise((resolve, reject) => {
         const transaction = this.db.transaction(store, 'readwrite');
         const objectStore = transaction.objectStore(store);
@@ -425,6 +503,10 @@
         request.onerror = (error) => reject(this._expandError(error, `Error on «browsie.deleteMany» operation over store «${store}»: `));
       });
     }
+  }
+
+  class Browsie extends BrowsieCrudAPI {
+
   }
 
   Browsie.default = Browsie;

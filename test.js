@@ -85,6 +85,55 @@
     // await Browsie.deleteDatabase("browsie_test_data");
     // await Browsie.deleteDatabase("browsie_test_schema");
     document.querySelector("#test").textContent += "\n[✔] Browsie Schema API Tests passed successfully.";
+    Triggers_api: {
+      console.log(await Browsie.globMatch([
+        "crud.insert.*.users",
+        "crud.*.many.users"
+      ], [
+        "crud.select.one.users",
+        "crud.select.many.users",
+        "crud.insert.one.users",
+        "crud.insert.many.users",
+        "crud.update.one.users",
+        "crud.update.many.users",
+        "crud.delete.one.users",
+        "crud.delete.many.users",
+      ]));
+      const db = await Browsie.open("browsie_test_schema");
+      let counter = 0;
+      await db.triggers.register("crud.insert.one.tabla1", "temp1", function() {
+        console.log("triggering temp1");
+        counter -= 2;
+      }, {
+        priority: 20
+      });
+      await db.triggers.register("crud.insert.one.tabla1", "temp2", function() {
+        console.log("triggering temp2");
+        counter *= 10;
+      }, {
+        priority: 10
+      });
+      await db.triggers.register("crud.insert.one.tabla1", "temp3", function() {
+        console.log("triggering temp3");
+        counter += 5;
+      }, {
+        priority: 30
+      });
+      await db.insert("tabla1", { uuid: "5", columna1: "a", columna2: "b", columna3: "c" });
+      schema = await Browsie.getSchema("browsie_test_schema");
+      console.log(schema);
+      console.log(db);
+      setTimeout(() => {
+        console.log(counter);
+        if(counter !== 30) {
+          console.error("Failed calculus");
+        } else {
+          console.log("Triggers are working fine");
+        }
+      }, 1000);
+      await db.close();
+    }
+    document.querySelector("#test").textContent += "\n[✔] Browsie Triggers API Tests passed successfully.";
   } catch (error) {
     console.log(error);
   }

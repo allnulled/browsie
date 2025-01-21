@@ -25,6 +25,7 @@ await Browsie.listDatabases()
 await Browsie.deleteDatabase(dbName)
 await Browsie.createDatabase(dbName, storeDefinition, version = 1, versionUpgrades = [])
 await Browsie.getSchema(dbName)
+await Browsie.globMatch(patterns, texts)
 browsie = new Browsie(dbName)
 await browsie.open()
 await browsie.select(store, filter)
@@ -34,11 +35,14 @@ await browsie.delete(store, id)
 await browsie.insertMany(store, items)
 await browsie.updateMany(store, filter, item)
 await browsie.deleteMany(store, filter)
+await browsie.triggers.register(eventId, triggerId, callback, options)
+await browsie.triggers.emit(eventId, parameters)
+await browsie.triggers.unregister(triggerId)
 ```
 
 ## Example
 
-This is the test that is ensuring the API right now:
+This is the test that is ensuring the API right now. There are 3 tests in 1 function: `Data_api`, `Schema_api` and `Triggers_api`.
 
 ```js
 (async function main() {
@@ -128,6 +132,55 @@ This is the test that is ensuring the API right now:
     // await Browsie.deleteDatabase("browsie_test_data");
     // await Browsie.deleteDatabase("browsie_test_schema");
     document.querySelector("#test").textContent += "\n[✔] Browsie Schema API Tests passed successfully.";
+    Triggers_api: {
+      console.log(await Browsie.globMatch([
+        "crud.insert.*.users",
+        "crud.*.many.users"
+      ], [
+        "crud.select.one.users",
+        "crud.select.many.users",
+        "crud.insert.one.users",
+        "crud.insert.many.users",
+        "crud.update.one.users",
+        "crud.update.many.users",
+        "crud.delete.one.users",
+        "crud.delete.many.users",
+      ]));
+      const db = await Browsie.open("browsie_test_schema");
+      let counter = 0;
+      await db.triggers.register("crud.insert.one.tabla1", "temp1", function() {
+        console.log("triggering temp1");
+        counter -= 2;
+      }, {
+        priority: 20
+      });
+      await db.triggers.register("crud.insert.one.tabla1", "temp2", function() {
+        console.log("triggering temp2");
+        counter *= 10;
+      }, {
+        priority: 10
+      });
+      await db.triggers.register("crud.insert.one.tabla1", "temp3", function() {
+        console.log("triggering temp3");
+        counter += 5;
+      }, {
+        priority: 30
+      });
+      await db.insert("tabla1", { uuid: "5", columna1: "a", columna2: "b", columna3: "c" });
+      schema = await Browsie.getSchema("browsie_test_schema");
+      console.log(schema);
+      console.log(db);
+      setTimeout(() => {
+        console.log(counter);
+        if(counter !== 30) {
+          console.error("Failed calculus");
+        } else {
+          console.log("Triggers are working fine");
+        }
+      }, 1000);
+      await db.close();
+    }
+    document.querySelector("#test").textContent += "\n[✔] Browsie Triggers API Tests passed successfully.";
   } catch (error) {
     console.log(error);
   }
@@ -135,7 +188,6 @@ This is the test that is ensuring the API right now:
 ```
 
 You can run it using `npm test`.
-
 
 ## The versionation
 
@@ -158,3 +210,17 @@ Finally, to apply the version upgrade, **increase the version** parameter of the
 Applying these 2 changes into your code, the database can migrate by itself, and track the ADN, to **keep compatibility** with previous schemas that users can have in their own browsers.
 
 So it is a good pattern. And we have close it the best way possible no, but close enough.
+
+## The triggerization
+
+You can add and remove triggers on runtime, but there is no persistence of them.
+
+The methods you want to check are:
+
+- `browsie.triggers.register("crud.insert.many.users", "uuid:1", triggerCallback, { priority: 10 })`
+- `browsie.triggers.emit("crud.insert.many.users", { args: [] })`
+- `browsie.triggers.unregister("uuid:1")`
+
+The triggers registration and emission accept the asterisk `*` operator of the glob expressions to refer to many events in 1 string.
+
+Both, triggerization and versionation strategies, are left to you, but covered somehow.
