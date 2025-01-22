@@ -4,6 +4,7 @@
   "description": "IndexedDB wrapper.",
   "main": "browsie.js",
   "scripts": {
+    "build": "npx htmlbundler --list bundlelist.js --module none --id none --wrap false --output browsie.bundled.js",
     "test": "npx http-server -c-1 . -o test.html"
   },
   "keywords": [],

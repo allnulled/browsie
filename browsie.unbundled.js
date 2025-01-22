@@ -242,72 +242,9 @@
 
   class BrowsieTriggersAPI extends BrowsieStaticAPI {
 
-    static globMatch(patterns, list) {
-      const matches = new Set();
-      const regexes = patterns.map(pattern => {
-        const regexPattern = pattern
-          .replace(/[-/\\^$+?.()|[\]{}]/g, "\\$&")
-          .replace(/\*/g, ".*");
-        return new RegExp(`^${regexPattern}$`);
-      });
-      for (const item of list) {
-        for (const regex of regexes) {
-          if (regex.test(item)) {
-            matches.add(item);
-            break;
-          }
-        }
-      }
-      return Array.from(matches);
-    }
+    static globMatch = TriggersApi.globMatch;
 
-    triggers = {
-      all: {},
-
-      register: (triggerNamePattern, triggerIdentifier, triggerCallback, triggerConfigurations = {}) => {
-        const { priority = 0 } = triggerConfigurations; // Default priority is 0
-        if (!this.triggers.all[triggerNamePattern]) {
-          this.triggers.all[triggerNamePattern] = [];
-        }
-        this.triggers.all[triggerNamePattern].push({
-          id: triggerIdentifier,
-          callback: triggerCallback,
-          priority,
-        });
-      },
-
-      emit: (triggerName, parameters = {}) => {
-        const matchedTriggers = [];
-        const allPatterns = Object.keys(this.triggers.all);
-
-        // Encuentra patrones que coincidan con el nombre del evento
-        const matchedPatterns = this.constructor.globMatch(allPatterns, [triggerName]);
-
-        // Agrega todos los eventos coincidentes a la lista de disparos
-        for (const pattern of matchedPatterns) {
-          matchedTriggers.push(...this.triggers.all[pattern]);
-        }
-
-        // Ordena por prioridad descendente
-        matchedTriggers.sort((a, b) => b.priority - a.priority);
-
-        // Ejecuta los callbacks en orden
-        for (const trigger of matchedTriggers) {
-          trigger.callback(parameters);
-        }
-      },
-
-      unregister: (triggerIdentifier) => {
-        for (const pattern in this.triggers.all) {
-          this.triggers.all[pattern] = this.triggers.all[pattern].filter(
-            (trigger) => trigger.id !== triggerIdentifier
-          );
-          if (this.triggers.all[pattern].length === 0) {
-            delete this.triggers.all[pattern]; // Limpia patrones vacíos
-          }
-        }
-      },
-    };
+    triggers = new TriggersApi()
 
   }
 
