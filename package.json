@@ -1,6 +1,6 @@
 {
   "name": "@allnulled/browsie",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "IndexedDB wrapper.",
   "main": "browsie.bundled.js",
   "scripts": {
