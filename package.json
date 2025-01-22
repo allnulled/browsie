@@ -2,7 +2,7 @@
   "name": "@allnulled/browsie",
   "version": "1.0.3",
   "description": "IndexedDB wrapper.",
-  "main": "browsie.js",
+  "main": "browsie.bundled.js",
   "scripts": {
     "build": "npx htmlbundler --list bundlelist.js --module none --id none --wrap false --output browsie.bundled.js",
     "test": "npx http-server -c-1 . -o test.html"

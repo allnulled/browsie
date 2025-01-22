@@ -13,7 +13,7 @@ npm i -s @allnulled/browsie
 Import from code:
 
 ```html
-<script src="node_modules/@allnulled/browsie/browsie.js"></script>
+<script src="node_modules/@allnulled/browsie/browsie.bundled.js"></script>
 ```
 
 The global `window.Browsie` should now be available.
@@ -38,6 +38,7 @@ await browsie.deleteMany(store, filter)
 await browsie.triggers.register(eventId, triggerId, callback, options)
 await browsie.triggers.emit(eventId, parameters)
 await browsie.triggers.unregister(triggerId)
+await browsie.triggers.load(triggersScript) // For this method, the library occupies like x20 times hahahaha maybe more HAHAHAHAHAH!
 ```
 
 ## Example
@@ -213,14 +214,8 @@ So it is a good pattern. And we have close it the best way possible no, but clos
 
 ## The triggerization
 
-You can add and remove triggers on runtime, but there is no persistence of them.
+We are using [@allnulled/triggers-api](https://github.com/allnulled/triggers-api) to cover the topic.
 
-The methods you want to check are:
+This allows you to use **triggers pattern** in multiple places, for multiple purposes or APIs.
 
-- `browsie.triggers.register("crud.insert.many.users", "uuid:1", triggerCallback, { priority: 10 })`
-- `browsie.triggers.emit("crud.insert.many.users", { args: [] })`
-- `browsie.triggers.unregister("uuid:1")`
-
-The triggers registration and emission accept the asterisk `*` operator of the glob expressions to refer to many events in 1 string.
-
-Both, triggerization and versionation strategies, are left to you, but covered somehow.
+It is up to you. On `TriggersApi` global, you can find.
