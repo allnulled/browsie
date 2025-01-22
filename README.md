@@ -41,6 +41,45 @@ await browsie.triggers.unregister(triggerId)
 await browsie.triggers.load(triggersScript) // For this method, the library occupies like x20 times hahahaha maybe more HAHAHAHAHAH!
 ```
 
+On `storeDefinitions:object` we want an object like:
+
+```js
+{
+  articulos: ["!nombre", "categorias", "resumen", "fecha", "autor", "inspiracion", "tags"],
+  productos: ["!nombre", "!modeloId", "categorias", "descripcion"]
+}
+```
+
+Here, the `!` is to declare `unique` indexes.
+
+On `version:integer` we want the current version of the database. This must be updated when a `versionUpgrades` is added.
+
+On `versionUpgrades:object` we want an object like this:
+
+```js
+{
+  2: function(db) {
+    if (!db.objectStoreNames.contains("orders")) {
+      const ordersStore = db.createObjectStore("orders", {
+        keyPath: "id",
+        autoIncrement: true,
+      });
+      ordersStore.createIndex("orderDate", "orderDate", { unique: false });
+      ordersStore.createIndex("userId", "userId", { unique: false });
+    }
+  }
+}
+```
+
+Here, every version should have its own function.
+
+On `eventId:string`, triggers section, we want:
+
+  - On `browsie.triggers.register(eventId, ...)`: a selector of events that accepts `*` as magic character.
+  - On `browsie.triggers.emit(eventId, ...)`: the name of the event, that does NOT accept `*` as magic character.
+
+On `triggersScript:string` we want a [`@allnulled/triggers-script`](https://github.com/allnulled/triggers-script) script as string.
+
 ## Example
 
 This is the test that is ensuring the API right now. There are 3 tests in 1 function: `Data_api`, `Schema_api` and `Triggers_api`.
